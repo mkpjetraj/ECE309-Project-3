@@ -39,3 +39,13 @@ double ToolRegistry::load_factor() const noexcept {
 std::size_t ToolRegistry::max_probe_length() const {
     return 0;   // TODO
 }
+
+// ---- private helpers -------------------------------------------------------
+
+std::size_t ToolRegistry::index_for(std::size_t /*h*/) const noexcept {
+    return 0;   // TODO: h & (bucket_count() - 1)
+}
+
+void ToolRegistry::rehash(std::size_t /*new_bucket_count*/) {
+    // TODO: build a new bucket array, move every Entry into its new bucket
+}

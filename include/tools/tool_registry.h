@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string_view>
+#include <string> //added
 #include <vector>
 
 class ToolRegistry {
@@ -66,8 +67,27 @@ public:
     static std::size_t hash(std::string_view key) noexcept;
 
 private:
-    // ===== YOUR REPRESENTATION GOES HERE =====
-    // Your buckets, your element count, and any private helpers you want
-    // (for example a rehash function). Store std::unique_ptr<Tool> in the
-    // buckets so that pointers handed out by find() survive a resize.
+    // ---- Representation: separate chaining -----------------------------
+    // Each bucket is small vecto of entries whose names hashed
+    // to that bucket index. table owns every Tool through a
+    // unique_ptr, so a rehash moves only pointers, the Tool objects never
+    // move, and any Tool* returned by find() is valid.
+    struct Entry {
+        std::string           name;   // cached tool->name(), the lookup key
+        std::unique_ptr<Tool> tool;   // owning pointer to the tool
+    };
+    using Chain = std::vector<Entry>;
+
+    // Bucket count is always a power of two, so index = hash & (count - 1).
+    static constexpr std::size_t kInitialBuckets = 8;
+    // Resize before an add() would push size()/bucket_count() above this.
+    static constexpr double kMaxLoadFactor = 1.0;
+
+    std::vector<Chain> buckets_;   // the table itself
+    std::size_t        count_ = 0; // number of tools stored
+
+
+    // Allocates new_bucket_count empty buckets and moves every entry into
+    // its new bucket (indices change when the bucket count changes).
+    void rehash(std::size_t new_bucket_count);
 };

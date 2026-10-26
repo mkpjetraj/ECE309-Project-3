@@ -1,5 +1,5 @@
 # Project 3 Design Log
-**Author:** <your name(s)> · **P2 code used:** <my own | instructor reference>
+**Author:** <your name(s)> · **P2 code used:** my own!
 **Tools used:** <AI assistants / other tools, and what you used them for>
 
 <!-- 500–800 words. An argument, not a diary: say what you decided, what
