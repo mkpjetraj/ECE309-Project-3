@@ -106,6 +106,57 @@ TEST(reg_hash_is_real_string_hash) {
     CHECK(ToolRegistry::hash("") != ToolRegistry::hash("a"));
 }
 
+// brand new table should be empty with a sane bucket count
+TEST(reg_empty_table) {
+    ToolRegistry r;
+    CHECK(r.size() == 0);
+    CHECK(r.bucket_count() >= 1);
+    CHECK(r.bucket_count() <= 64);
+    CHECK(r.load_factor() == 0.0);
+    CHECK(r.max_probe_length() == 0);
+    CHECK(r.find("calculator") == nullptr);
+}
+
+// nullptr gets rejected and doesnt change size
+TEST(reg_null_rejected) {
+    ToolRegistry r;
+    CHECK(!r.add(nullptr));
+    CHECK(r.size() == 0);
+    REQUIRE(r.add(std::make_unique<NamedTool>("alpha")));
+    CHECK(!r.add(nullptr));
+    CHECK(r.size() == 1);
+}
+
+// size after each kind of add: good, dup, null, absent lookup
+TEST(reg_size_after_each_op) {
+    ToolRegistry r;
+    REQUIRE(r.add(std::make_unique<NamedTool>("a")));
+    CHECK(r.size() == 1);
+    REQUIRE(r.add(std::make_unique<NamedTool>("b")));
+    CHECK(r.size() == 2);
+    CHECK(!r.add(std::make_unique<NamedTool>("a")));   // dup
+    CHECK(r.size() == 2);
+    CHECK(!r.add(nullptr));
+    CHECK(r.size() == 2);
+    CHECK(r.find("zzz") == nullptr);                   // lookup doesnt change size
+    CHECK(r.size() == 2);
+    CHECK(r.load_factor() == 2.0 / static_cast<double>(r.bucket_count()));
+}
+
+// for_each should hit every tool exactly once
+TEST(reg_for_each_visits_each_once) {
+    ToolRegistry r;
+    std::vector<std::string> names = {"read_file", "write_file", "list_dir", "calculator", "extra"};
+    for (const auto& n : names) REQUIRE(r.add(std::make_unique<NamedTool>(n)));
+
+    std::vector<std::string> seen;
+    r.for_each([&](const Tool& t) { seen.push_back(t.name()); });
+
+    std::sort(names.begin(), names.end());
+    std::sort(seen.begin(), seen.end());
+    CHECK(seen == names);   // same set, no dups no missing
+}
+
 // spec says at least 9990 diff values for tool_0 .. tool_9999
 TEST(reg_hash_distinct_on_10000_names) {
     std::vector<std::size_t> hs;
