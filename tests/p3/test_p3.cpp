@@ -16,6 +16,7 @@
 #include "tools/tool_registry.h"
 #include "tools/workspace.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -95,6 +96,25 @@ TEST(calc_division_by_zero) {
 }
 
 // ------------------------------------------------------------- your tests
+
+// hash has to be order sensitive and look at every char, and same input
+// should always give same output
+TEST(reg_hash_is_real_string_hash) {
+    CHECK(ToolRegistry::hash("ab") != ToolRegistry::hash("ba"));
+    CHECK(ToolRegistry::hash("tool_1234") != ToolRegistry::hash("tool_1243"));
+    CHECK(ToolRegistry::hash("calculator") == ToolRegistry::hash("calculator"));
+    CHECK(ToolRegistry::hash("") != ToolRegistry::hash("a"));
+}
+
+// spec says at least 9990 diff values for tool_0 .. tool_9999
+TEST(reg_hash_distinct_on_10000_names) {
+    std::vector<std::size_t> hs;
+    for (int i = 0; i < 10000; ++i)
+        hs.push_back(ToolRegistry::hash("tool_" + std::to_string(i)));
+    std::sort(hs.begin(), hs.end());
+    std::size_t distinct = std::unique(hs.begin(), hs.end()) - hs.begin();
+    CHECK(distinct >= 9990);
+}
 //
 // Still to write (spec §6 has the full list). Suggested names:
 //   reg_null_rejected, reg_for_each_visits_each_once

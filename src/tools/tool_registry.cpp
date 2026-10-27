@@ -5,11 +5,22 @@
 
 #include "tools/tool_registry.h"
 
+#include <cstdint>
+
 ToolRegistry::ToolRegistry() = default;    // TODO: create your initial buckets
 ToolRegistry::~ToolRegistry() = default;   // unique_ptrs in your buckets free the tools
 
-std::size_t ToolRegistry::hash(std::string_view /*key*/) noexcept {
-    return 0;   // TODO: FNV-1a (spec Appendix A) or another real string hash
+// FNV-1a 64 bit. start at offset basis, then for every char xor it in and
+// multiply by FNV prime. xor then multiply means each char gets mixed into
+// all the bits so order matters ("ab" != "ba") and every char counts.
+// returns full width hash, index_for() does the reducing to a bucket
+std::size_t ToolRegistry::hash(std::string_view key) noexcept {
+    std::uint64_t h = 1469598103934665603ULL;          // offset basis
+    for (unsigned char c : key) {                      // unsigned so chars >127 dont go negative
+        h ^= c;
+        h *= 1099511628211ULL;                         // FNV prime
+    }
+    return static_cast<std::size_t>(h);
 }
 
 bool ToolRegistry::add(std::unique_ptr<Tool> /*tool*/) {

@@ -18,8 +18,8 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
-#include <string> //added
 #include <vector>
 
 class ToolRegistry {
@@ -71,7 +71,7 @@ private:
     // Each bucket is small vecto of entries whose names hashed
     // to that bucket index. table owns every Tool through a
     // unique_ptr, so a rehash moves only pointers, the Tool objects never
-    // move, and any Tool* returned by find() is valid.
+    // move, and any Tool* returned by find() is valid. 
     struct Entry {
         std::string           name;   // cached tool->name(), the lookup key
         std::unique_ptr<Tool> tool;   // owning pointer to the tool
