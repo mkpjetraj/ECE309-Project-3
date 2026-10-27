@@ -41,7 +41,7 @@ trace 2 * (3 + 4) - 5:
 | 5 | 14 5 | - | number, push |
 | end | 9 | | do everything left, doOp (14−5) |
 
-I tried to write this out as a table, I hope the formatting is preserved.
+**note for TA: I tried to write this out as a table, I hope the formatting is preserved My apologies if not!
 
 ## 4. Errors as values
 these return errors instead of throwingbecause tool failure is somewhat common/normal, and you dont want to crash the harness. If bad input is given that shouldlnt make the whole thing crash. 
