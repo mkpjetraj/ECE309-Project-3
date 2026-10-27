@@ -157,6 +157,72 @@ TEST(reg_for_each_visits_each_once) {
     CHECK(seen == names);   // same set, no dups no missing
 }
 
+// table should grow as we add, and lookups still work after resizes
+TEST(reg_resizes_and_keeps_tools) {
+    ToolRegistry r;
+    std::size_t start = r.bucket_count();
+    for (int i = 0; i < 100; ++i)
+        REQUIRE(r.add(std::make_unique<NamedTool>("t" + std::to_string(i))));
+    CHECK(r.bucket_count() > start);
+    CHECK(r.load_factor() <= 1.0);
+    for (int i = 0; i < 100; ++i)
+        CHECK(r.find("t" + std::to_string(i)) != nullptr);
+}
+
+// REQUIRED scale test. 10000 tools, every one findable, first pointer
+// doesnt move thru all the resizes, load factor <= 1 after every add,
+// longest chain <= 64
+TEST(reg_10000_tools) {
+    ToolRegistry r;
+    Tool* first = nullptr;
+    bool lf_ok = true;
+    for (int i = 0; i < 10000; ++i) {
+        auto t = std::make_unique<NamedTool>("tool_" + std::to_string(i));
+        if (i == 0) first = t.get();
+        REQUIRE(r.add(std::move(t)));
+        if (r.load_factor() > 1.0) lf_ok = false;
+    }
+    CHECK(lf_ok);
+    CHECK(r.size() == 10000);
+
+    bool all_found = true;
+    for (int i = 0; i < 10000; ++i)
+        if (r.find("tool_" + std::to_string(i)) == nullptr) all_found = false;
+    CHECK(all_found);
+
+    CHECK(r.find("tool_0") == first);   // same address after ~11 resizes
+    CHECK(r.max_probe_length() <= 64);
+
+    std::printf("  [FNV-1a chaining] bucket_count=%zu load_factor=%.4f max_probe_length=%zu\n",
+                r.bucket_count(), r.load_factor(), r.max_probe_length());
+}
+
+// REQUIRED alt hash. what would s[0] + s.size() do with same 10000 names
+// at the same final bucket count? just count per bucket in a vector
+TEST(reg_alternative_hash) {
+    ToolRegistry r;
+    for (int i = 0; i < 10000; ++i)
+        REQUIRE(r.add(std::make_unique<NamedTool>("tool_" + std::to_string(i))));
+    const std::size_t buckets = r.bucket_count();
+
+    std::vector<int> counts(buckets, 0);
+    for (int i = 0; i < 10000; ++i) {
+        std::string s = "tool_" + std::to_string(i);
+        std::size_t weak = static_cast<unsigned char>(s[0]) + s.size();
+        ++counts[weak % buckets];
+    }
+    int longest = 0, used = 0;
+    for (int c : counts) {
+        if (c > longest) longest = c;
+        if (c > 0) ++used;
+    }
+
+    std::printf("  [FNV-1a]          buckets=%zu longest chain=%zu\n", buckets, r.max_probe_length());
+    std::printf("  [s[0] + s.size()] buckets=%zu longest chain=%d (only %d buckets used)\n",
+                buckets, longest, used);
+    CHECK(static_cast<std::size_t>(longest) > r.max_probe_length());   // weak one is way worse
+}
+
 // spec says at least 9990 diff values for tool_0 .. tool_9999
 TEST(reg_hash_distinct_on_10000_names) {
     std::vector<std::size_t> hs;

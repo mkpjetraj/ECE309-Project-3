@@ -36,7 +36,12 @@ bool ToolRegistry::add(std::unique_ptr<Tool> tool) {
     std::string name = tool->name();   // call virtual name() once and keep it
     if (find(name) != nullptr) return false;
 
-    // TODO step 5: resize here BEFORE inserting if load factor would go over
+    // check BEFORE inserting: if one more tool would push load factor over
+    // the max, double the buckets first. doubling keeps it a power of 2
+    double next_load = static_cast<double>(count_ + 1) / static_cast<double>(buckets_.size());
+    if (next_load > kMaxLoadFactor) {
+        rehash(buckets_.size() * 2);
+    }
 
     Chain& chain = buckets_[index_for(hash(name))];
     chain.push_back(Entry{std::move(name), std::move(tool)});
@@ -93,6 +98,19 @@ std::size_t ToolRegistry::index_for(std::size_t h) const noexcept {
     return h & (buckets_.size() - 1);
 }
 
-void ToolRegistry::rehash(std::size_t /*new_bucket_count*/) {
-    // TODO: build a new bucket array, move every Entry into its new bucket
+// move old buckets out, make new empty array of new size, then put every
+// entry back in using the NEW count (index changes when count changes).
+// std::move on Entry moves the unique_ptr, so only the pointer moves, the
+// Tool object stays put and any Tool* from find() is still good
+void ToolRegistry::rehash(std::size_t new_bucket_count) {
+    std::vector<Chain> old = std::move(buckets_);
+    buckets_ = std::vector<Chain>(new_bucket_count);   // index_for uses this size now
+
+    for (Chain& chain : old) {
+        for (Entry& e : chain) {
+            std::size_t i = index_for(hash(e.name));
+            buckets_[i].push_back(std::move(e));
+        }
+    }
+    // old goes out of scope here, its entries are all moved from (null) so nothing deleted
 }
