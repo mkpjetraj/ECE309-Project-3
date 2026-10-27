@@ -81,6 +81,82 @@ TEST(ws_rejects_parent_escape) {
     CHECK(!reason.empty());
 }
 
+// ---- workspace: every row of spec 4.4 table ----
+
+// helper, resolve and expect accept, check out matches what we expect
+static void expect_accept(const Workspace& ws, const std::string& in, const fs::path& want) {
+    fs::path out;
+    std::string reason;
+    CHECK(ws.resolve(in, &out, &reason));
+    CHECK(out == want);
+}
+
+// helper, expect reject with a non empty reason
+static void expect_reject(const Workspace& ws, const std::string& in) {
+    fs::path out;
+    std::string reason;
+    CHECK(!ws.resolve(in, &out, &reason));
+    CHECK(!reason.empty());
+}
+
+TEST(ws_accepts_plain_and_messy_paths) {
+    TempDir d;
+    Workspace ws(d.path());
+    expect_accept(ws, "notes/todo.txt", ws.root() / "notes" / "todo.txt");
+    expect_accept(ws, "./notes//todo.txt", ws.root() / "notes" / "todo.txt");
+    expect_accept(ws, "new/dir/file.txt", ws.root() / "new" / "dir" / "file.txt");   // doesnt exist
+    expect_accept(ws, "my..notes.txt", ws.root() / "my..notes.txt");   // .. inside a name is fine
+}
+
+TEST(ws_dot_and_folding_resolve_to_root) {
+    TempDir d;
+    Workspace ws(d.path());
+    expect_accept(ws, ".", ws.root());
+    expect_accept(ws, "a/..", ws.root());
+    expect_accept(ws, "a/../b", ws.root() / "b");
+}
+
+TEST(ws_rejects_empty_and_nul) {
+    TempDir d;
+    Workspace ws(d.path());
+    expect_reject(ws, "");
+    expect_reject(ws, std::string("notes") + '\0' + "/x");   // literal would get cut at the NUL
+}
+
+TEST(ws_rejects_absolute) {
+    TempDir d;
+    Workspace ws(d.path());
+    expect_reject(ws, "/etc/passwd");
+    expect_reject(ws, (ws.root() / "notes").string());   // absolute even tho its inside root
+}
+
+TEST(ws_rejects_dotdot) {
+    TempDir d;
+    Workspace ws(d.path());
+    expect_reject(ws, "..");
+    expect_reject(ws, "../etc/passwd");
+    expect_reject(ws, "a/../../b");
+}
+
+// goes above root then comes back in, still rejected
+TEST(ws_rejects_escape_and_return) {
+    TempDir d;
+    fs::path root = d.path() / "ws";
+    fs::create_directories(root);
+    Workspace ws(root);
+    expect_reject(ws, "notes/../../ws/notes/todo.txt");
+}
+
+// resolve shouldnt create anything on disk
+TEST(ws_does_not_touch_filesystem) {
+    TempDir d;
+    Workspace ws(d.path());
+    fs::path out;
+    std::string reason;
+    REQUIRE(ws.resolve("brand/new/thing.txt", &out, &reason));
+    CHECK(!fs::exists(ws.root() / "brand"));
+}
+
 TEST(calc_precedence) {
     double v = 0;
     std::string err;
