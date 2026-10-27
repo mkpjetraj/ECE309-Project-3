@@ -171,6 +171,59 @@ TEST(calc_division_by_zero) {
     CHECK(err == "division by zero");
 }
 
+// ---- calculator: every row of spec 4.6 table + some of mine ----
+
+// helper, eval and expect a value
+static void expect_value(const std::string& expr, double want) {
+    double v = 0;
+    std::string err;
+    CHECK(eval(expr, &v, &err));
+    CHECK(v == want);
+}
+
+TEST(calc_left_to_right) {
+    expect_value("10 - 4 - 3", 3);     // (10-4)-3 not 10-(4-3)
+    expect_value("100 / 10 / 5", 2);
+}
+
+TEST(calc_parentheses) {
+    expect_value("(2 + 3) * 4", 20);
+    expect_value("2 * (3 + 4) - 5", 9);
+}
+
+TEST(calc_negatives_and_decimals) {
+    expect_value("-3 * -3", 9);
+    expect_value("7 / 2", 3.5);
+}
+
+TEST(calc_div_zero_inside_parens) {
+    double v = 0;
+    std::string err;
+    CHECK(!eval("1 / (2 - 2)", &v, &err));
+    CHECK(err == "division by zero");
+}
+
+// my own
+TEST(calc_my_own_expressions) {
+    expect_value("((((5))))", 5);
+    expect_value("1.5 + 2.25 * 2", 6);
+    expect_value("2 * -3 + 10", 4);
+    expect_value("8 - (3 - (2 - 1))", 6);
+}
+
+// 20000 terms, would be slow/deep if it was recursive
+TEST(calc_long_expression) {
+    std::string e = "1";
+    for (int i = 1; i < 20000; ++i) e += "+1";
+    expect_value(e, 20000);
+}
+
+// 5000 nested parens, recursion would blow the stack
+TEST(calc_deep_nesting) {
+    std::string e = std::string(5000, '(') + "7" + std::string(5000, ')');
+    expect_value(e, 7);
+}
+
 // ------------------------------------------------------------- your tests
 
 // hash has to be order sensitive and look at every char, and same input
