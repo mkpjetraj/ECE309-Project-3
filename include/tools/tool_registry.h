@@ -86,6 +86,8 @@ private:
     std::vector<Chain> buckets_;   // the table itself
     std::size_t        count_ = 0; // number of tools stored
 
+    // Maps a full-width hash to a bucket index for the current bucket count.
+    std::size_t index_for(std::size_t h) const noexcept;
 
     // Allocates new_bucket_count empty buckets and moves every entry into
     // its new bucket (indices change when the bucket count changes).
